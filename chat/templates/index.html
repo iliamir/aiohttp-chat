@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}chat rooms{% endblock %}
+{% block content %}
+  <h3>Chat channels:</h3>
+  <ul>
+    {% for channel in channels %}
+      <li>
+        {{channel}}
+        <form action="/{{channel}}" method="get">
+          <input type="submit" value="join">
+        </form>
+        <form action="/delete_channel/{{channel}}" method="POST">
+          <input type="submit" value="delete">
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+  <form action="create_channel/random" method="get">
+    <input type="submit" value="new channel">
+  </form>
+{% endblock %}

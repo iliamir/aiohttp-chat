@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ channel }}{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+  <script src="/static/chat.js" type="text/javascript"></script>
+{% endblock %}
+{% block content %}
+  <h3>Chat! {{ channel }}</h3>
+  <div>
+    <button id="connect">Connect</button>&nbsp;|&nbsp;Status:
+    <span id="name">UNKNOWN</span>
+    <span id="status">disconnected</span>
+  </div>
+  <div id="log" style="width:20em;height:15em;overflow:auto;border:1px solid black"></div>
+  <form id="chatform" onsubmit="return false;">
+    <input id="text" type="text" />
+    <input id="send" type="button" value="Send" />
+  </form>
+{% endblock %}

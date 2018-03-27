@@ -3,7 +3,7 @@ from chat import __version__
 
 top_packages = [
     'chat',
-    'test',
+    'tests',
 ]
 packages_pattern = top_packages + [p + '.*' for p in top_packages]
 

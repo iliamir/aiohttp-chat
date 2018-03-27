@@ -1,6 +1,7 @@
 import logging
 
 import aioredis
+import pymongo.errors
 
 import settings
 from chat.utils import format_message
@@ -16,23 +17,28 @@ class EventsChannel:
         self._publisher = None
 
     async def create(self):
-        if not self.exists():
-            await self.app['redis'].sadd('rooms', self.channel_name)
+        if not await self.exists():
+            try:
+                await self.app['storage'].create_channel(self.channel_name)
+            except pymongo.errors.DuplicateKeyError:
+                pass
             self.broadcast()
 
     async def delete(self):
         self.app['events_channels'].pop(self.channel_name).cancel()
-        await self.app['redis'].srem('rooms', self.channel_name)
+        await self.app['storage'].delete_channel(self.channel_name)
+        await self.app['storage'].purge_messages(self.channel_name)
         for ws in self.app['sockets'].pop(self.channel_name, {}).values():
             await ws.close()
 
     @staticmethod
     async def get_channels(app):
-        return await app['redis'].smembers('rooms', encoding='utf-8')
+        return await app['storage'].get_channels()
 
     @classmethod
     async def propagate_channels(cls, app):
-        for channel_name in await cls.get_channels(app):
+        channels = await cls.get_channels(app)
+        for channel_name in channels:
             await cls(app, channel_name).create()
 
     @classmethod
@@ -42,8 +48,11 @@ class EventsChannel:
             await task
         app['events_channels'].clear()
 
-    def exists(self):
-        return self.channel_name in self.app['events_channels']
+    async def exists(self):
+        channel_exists = await self.app['storage'].get_channel(
+            self.channel_name)
+        listener_exists = self.channel_name in self.app['events_channels']
+        return channel_exists and listener_exists
 
     def subscribe_socket(self, ws, name):
         logging.debug(f'Subscriber of {self.channel_name} here!')
@@ -57,6 +66,7 @@ class EventsChannel:
         if self._publisher is None:
             self._publisher = await aioredis.create_redis(settings.REDIS_HOST)
         await self._publisher.publish(self.channel_name, msg)
+        await self.app['storage'].save_message(self.channel_name, msg)
 
     def broadcast(self):
         task = self.app.loop.create_task(self._broadcast())

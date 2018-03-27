@@ -10,10 +10,31 @@ from chat.broadcast import EventsChannel
 log = logging.getLogger(__name__)
 
 
+class LoginView(web.View):
+
+    async def post(self):
+        response = web.HTTPFound('/')
+        data = await self.request.post()
+        response.set_cookie('user', data['name'])
+        return response
+
+    async def get(self):
+        if self.request.cookies.get('user'):
+            return web.HTTPFound('/')
+        return aiohttp_jinja2.render_template(
+            'login.html', self.request, {})
+
+
 async def index(request):
     channels = await EventsChannel.get_channels(request.app)
     return aiohttp_jinja2.render_template(
         'index.html', request, {'channels': channels})
+
+
+async def logout(request):
+    response = web.HTTPFound('/')
+    response.del_cookie('user')
+    return response
 
 
 async def create_channel(request):
@@ -33,20 +54,30 @@ async def delete_channel(request):
 
 async def chat_room(request):
     channel_name = request.match_info['channel']
-    if not EventsChannel(request.app, channel_name).exists():
+    if not await EventsChannel(request.app, channel_name).exists():
         return web.HTTPNotFound()
+    messages = await request.app['storage'].get_messages(channel_name)
     return aiohttp_jinja2.render_template(
-        'chat.html', request, {'channel': channel_name})
+        'chat.html',
+        request,
+        {'channel': channel_name, 'messages': messages},
+    )
+
+
+async def get_last_messages(request):
+    channel = request.match_info['channel']
+    messages = await request.app['storage'].get_messages(channel)
+    return web.json_response(messages)
 
 
 async def websocket(request):
     resp = web.WebSocketResponse()
     await resp.prepare(request)
-    name = petname.Name().capitalize()
+    name = request.cookies.get('user') or petname.Name().capitalize()
     log.info('%s joined.', name)
     channel_name = request.match_info['channel']
     channel = EventsChannel(request.app, channel_name)
-    if not channel.exists():
+    if not await channel.exists():
         log.warning(f'No such channel [{channel_name}]')
         await resp.close()
         return resp

@@ -11,6 +11,7 @@ $(function() {
 
   function connect() {
     disconnect();
+    update_messages();
     conn = new WebSocket(wsProto + window.location.host + '/ws' + window.location.pathname);
     log('Connecting...');
     conn.onopen = function() {
@@ -53,6 +54,20 @@ $(function() {
       name = 'UNKNOWN';
       update_ui();
     }
+  }
+
+  function update_messages() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('get', '/last_messages' + window.location.pathname);
+      xhr.onload = function (e) {
+        var messages = JSON.parse(xhr.response);
+        messages.forEach(function (value) {
+          if (value.msg.text){
+            log(value.msg.name + ': ' + value.msg.text);
+          }
+        })
+      };
+      xhr.send();
   }
 
   function update_ui() {

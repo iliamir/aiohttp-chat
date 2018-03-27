@@ -8,7 +8,7 @@ from aiohttp import web
 
 from chat.broadcast import EventsChannel
 from chat.routes import setup_routes, setup_static_routes
-from chat.utils import setup_redis
+from chat.utils import setup_storage
 
 
 async def init(loop):
@@ -21,7 +21,7 @@ async def init(loop):
         app, loader=jinja2.PackageLoader('chat', 'templates'))
     setup_routes(app)
     setup_static_routes(app)
-    await setup_redis(app)
+    setup_storage(app)
     await EventsChannel.propagate_channels(app)
     return app
 
@@ -37,10 +37,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG)
     loop = asyncio.get_event_loop()
     app = loop.run_until_complete(init(loop))
-    try:
-        web.run_app(app, port=1488)
-    except asyncio.CancelledError:
-        pass
+    web.run_app(app, port=1488)
 
 
 if __name__ == '__main__':
